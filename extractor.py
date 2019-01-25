@@ -81,12 +81,17 @@ class squadExtractor():
                         dataStack.append(tem)
         return dataStack
     
-    def extractSquad(self):
-        dev=self.extractSquadJson(self.devFName)
+    def extractSquad(self, dataset='dev'):
+        if dataset=='dev':
+            fname=self.devFName
+        else:
+            fname=self.trainFName
+        dev=self.extractSquadJson(fname)
         return dev
         
         
 #lines=[]
+#lines.append('jim henson was a puppeteer ||| hello testing')
 #lines.append('jim henson was a puppeteer ||| hello testing')
 #
 #extract=extractor2()

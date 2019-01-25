@@ -355,7 +355,7 @@ class extractor():
             "This specifies the model architecture.")
         
         self.flags.DEFINE_integer(
-            "max_seq_length", 128,
+            "max_seq_length", 384,
             "The maximum total input sequence length after WordPiece tokenization. "
             "Sequences longer than this will be truncated, and sequences shorter "
             "than this will be padded.")
@@ -403,7 +403,18 @@ class extractor():
               tpu_config=tf.contrib.tpu.TPUConfig(
                   num_shards=self.FLAGS.num_tpu_cores,
                   per_host_input_for_training=self.is_per_host))
-        
+    
+    def del_all_flags(self, FLAGS):
+        flags_dict = FLAGS._flags()
+        keys_list = [keys for keys in flags_dict]
+        print(keys_list)
+        for keys in keys_list:
+            FLAGS.__delattr__(keys)
+    
+    def __del__(self):
+        print('delete flags')
+        self.del_all_flags(self.FLAGS)
+    
     def process(self,lines):
         examples = read_examples(lines)
 
