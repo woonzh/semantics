@@ -26,6 +26,7 @@ import re
 import modeling
 import tokenization
 import tensorflow as tf
+import os
 
 #flags = tf.flags
 #
@@ -389,7 +390,9 @@ class extractor():
             "tf.nn.embedding_lookup will be used. On TPUs, this should be True "
             "since it is much faster.")
         
-        tf.logging.set_verbosity(tf.logging.INFO)
+#        tf.logging.set_verbosity(tf.logging.INFO)
+#        tf.logging.set_verbosity(tf.logging.ERROR)
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
         self.layer_indexes = [int(x) for x in self.FLAGS.layers.split(",")]
     

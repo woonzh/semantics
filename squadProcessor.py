@@ -6,11 +6,12 @@ Created on Mon Dec 31 14:31:39 2018
 """
 
 import extractor
-import pickle
+from storer import pickleStorer
 import argparse
 import tokenization
 import time
 import pandas as pd
+import time
 
 squadDev='squad/dev-v2.0.json'
 squadTrain='squad/train-v2.0.json'
@@ -19,6 +20,8 @@ extract=extractor.extractor2()
 squadExtract=extractor.squadExtractor(squadDev, squadTrain)
 tokenizer = tokenization.FullTokenizer
 longQAs=[]
+
+fstorer=pickleStorer()
 
 def getStartAndEnd(orgText, orgStartIndex, ans):
     encodings=extract.extractLastLayer([orgText])[0]
@@ -48,14 +51,14 @@ def getStartAndEnd(orgText, orgStartIndex, ans):
             newEndIndex-=length
             
         if newStartIndex < 0 and startFound==False:
-            print(token)
+#            print(token)
             encodings[counter]['start']=True
             startFound = True
         else:
             encodings[counter]['start']=False
         
         if newEndIndex < 0 and endFound==False:
-            print(token)
+#            print(token)
             encodings[counter]['end']=True
             endFound=True
         else:
@@ -117,74 +120,49 @@ def batchedGetStartAndEnd(batch):
                     newEndIndex-=length
                     
                 if newStartIndex < 0 and startFound==False:
-                    print(token)
+#                    print(token)
                     encode['start']=True
                     startFound = True
                 else:
                     encode['start']=False
                 
                 if newEndIndex < 0 and endFound==False:
-                    print(token)
+#                    print(token)
                     encode['end']=True
                     endFound=True
                 else:
                     encode['end']=False
+                    
+#                encode['text']= textStore[counter]
+#                encode['ans']= ansStore[counter]
+#                encode['question']= questTextStore[counter]
                 temEncoding.append(encode)
                 
         if endFound == False:
             longQAs.append({'text':textStore[counter], 'ans':ansStore[counter], 'question':questTextStore[counter]})
                     
-        newEncodings.append(temEncoding)
+        newEncodings.append({'encoding':temEncoding, 'text': textStore[counter], 'ans':ansStore[counter], 'question': questTextStore[counter]})
     
 #    del extract
     del encodings
-    return newEncodings
+    return newEncodings, longQAs
 
-def loadSquadEncoding(dataset='dev'):
-    if dataset=='dev':
-        with open('squad/squadDev.p', 'rb') as f:
-            a=pickle.load(f)
-        with open('squad/longQAsDev.p', 'rb') as f:
-            b=pickle.load(f)
-    else:
-        with open('squad/squadTrain.p', 'rb') as f:
-            a=pickle.load(f)
-        with open('squad/longQAsTrain.p', 'rb') as f:
-            b=pickle.load(f)
-    
-    return a, b
-
-def store(store, longQAs, dataset='dev', method='replace'):
-    if method!='replace':
-        try:
-            curStore, curLongQAs=loadSquadEncoding(dataset)
-            store=curStore+store
-            longQAs=curLongQAs+longQAs
-        except:
-            print('no current storage found')
-        
-    if dataset=='dev':
-        with open('squad/squadDev.p', 'wb') as f:
-            pickle.dump(store, f)
-        with open('squad/longQAsDev.p', 'wb') as f:
-            pickle.dump(longQAs, f)
-    else:
-        with open('squad/squadTrain.p', 'wb') as f:
-            pickle.dump(store, f)
-        with open('squad/longQAsTrain.p', 'wb') as f:
-            pickle.dump(longQAs, f)        
-        
-
-def extractSquadBatch(dataset='dev'):
+def extractSquadBatch(dataset='dev', overwrite=False):
     if dataset=='dev':
         orgData=squadExtract.extractSquad()
     else:
         orgData=squadExtract.extractSquad('train')
-        
-    temStore=[]
-    batch_size=32
     
-    data=orgData[0:100]
+    try:
+        curStore, curLongQAs=fstorer.loadSquadEncoding(dataset)
+        startId=len(curStore)
+    except:
+        startId=0
+        
+    batch_size=32
+    processSize=30*batch_size
+    
+    data=orgData[startId:startId+processSize]
     
     count=0
     
@@ -193,52 +171,34 @@ def extractSquadBatch(dataset='dev'):
     
     while count < len(data):
         data_batch=data[count:min(count+batch_size, len(data))]
-        temStore+=batchedGetStartAndEnd(data_batch)
-        if len(data)<len(orgData) and count == 0:
-            store(temStore, longQAs, dataset, 'add')
-        else:
-            store(temStore, longQAs, dataset)
+        newStore, newLongQAs=batchedGetStartAndEnd(data_batch)
+        
+        fstorer.store(newStore, newLongQAs, dataset)
         
         count+=batch_size
         timeStore.loc[len(timeStore)]=[len(timeStore), time.time()-curTime]
+        print('%s iteration done in %s mins'%(len(timeStore), str((time.time()-curTime)/60)))
         curTime=time.time()
-        print('%s iteration done.'%(len(timeStore)))
     
     timeStore.to_csv('squad/timings.csv')
     return store, longQAs
 
-#df=extractSquadBatch()
-#data=squadExtract.extractSquad()
-
-def extractSquad(dataset='dev'):
-    if dataset=='dev':
-        data=squadExtract.extractSquad()
-    else:
-        data=squadExtract.extractSquad('train')
-        
-    store=[]
-    
-    for line in data:
-        orgText=line['context']
-        ans=line['ansText']
-        start=line['ansStart']
-        encoding=getStartAndEnd(orgText, start, ans)
-        store.append(encoding)
-        
-    if dataset=='dev':
-        with open('squad/squadDev.p', 'wb') as f:
-            pickle.dump(store, f)
-    else:
-        with open('squad/squadTrain.p', 'wb') as f:
-            pickle.dump(store, f)
-    
-    return store
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process squad files')
     parser.add_argument("datatype", default='dev', help='dataset type')
+    parser.add_argument("overwrite", default='false', help='overwrite')
+    
     args = parser.parse_args()
     
-    print(args.datatype)
+#    print(args.datatype)
+#    print(args.overwrite)
     
-    store, longQAs=extractSquadBatch(args.datatype)
+    if args.overwrite=='true':
+        overwrite=True
+    else:
+        overwrite=False
+    
+    start=time.time()
+    store, longQAs=extractSquadBatch(args.datatype, overwrite)
+    
+    print("time taken: %s minutes"%(str(time.time()-start)/60))

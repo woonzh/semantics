@@ -7,31 +7,15 @@ Created on Thu Jan 17 15:36:08 2019
 """
 
 #import tensorflow as tf
-import pickle
+from storer import pickleStorer
 #import squadProcessor
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-fnames={
-    'dev': 'sqaud/squadDev.p',
-    'train': 'squad/squadTrain.p'
-        }
+store=pickleStorer()
 
-def loadSquadEncoding(dataset='dev'):
-    if dataset=='dev':
-        with open('squad/squadDev.p', 'rb') as f:
-            a=pickle.load(f)
-        with open('squad/longQAsDev.p', 'rb') as f:
-            b=pickle.load(f)
-    else:
-        with open('squad/squadTrain.p', 'rb') as f:
-            a=pickle.load(f)
-        with open('squad/longQAsTrain.p', 'rb') as f:
-            b=pickle.load(f)
-    
-    return a, b
-
-data, longQA=loadSquadEncoding()
+data, longQA=store.loadSquadEncoding('dev')
+print(len(data))
 
 #x=[]
 #y=[]

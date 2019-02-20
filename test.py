@@ -63,6 +63,8 @@ def extractSqaud(dataset='dev'):
         data=squadExtract.extractSquad()
     else:
         data=squadExtract.extractSquad('train')
+    
+#    return data
         
     store=[]
     
